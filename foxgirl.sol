@@ -1,11 +1,22 @@
 /**
- *Submitted for verification at BscScan.com on 2021-10-01
+ *Submitted for verification at BscScan.com on 2021-12-17
 */
 
-// SPDX-License-Identifier: Unlicensed
+// SPDX-License-Identifier: Unlicensed 
+// Unlicensed is not Open Source, can not be used/forked without permission 
+// Contract created for https://Foxgirl.com by https://gentokens.com/ 
+
 
 /*
 
+  ______           _____ _      _ 
+ |  ____|         / ____(_)    | |
+ | |__ _____  __ | |  __ _ _ __| |
+ |  __/ _ \ \/ / | | |_ | | '__| |
+ | | | (_) >  <  | |__| | | |  | |
+ |_|  \___/_/\_\  \_____|_|_|  |_|
+                                  
+                       
 FoxGirl Token
 
 https://Foxgirl.com
@@ -13,20 +24,15 @@ https://t.me/foxgirltoken
 
 Name: FoxGirl
 Symbol: FOXGIRL
-
 Supply: 100,000,000,000,000
-Fair Launch: No Team Tokens
-Tax: 10% Marketing/dev/team
 
-Join foxgirl.com for all the latest fair launches and stealth launches.
-Follow trusted and verified token developers and set alerts for your favorite upcoming launches.
-Invest in and enjoy a revolutionary and integral to crypto platform with an intuitive
-interface that every crypto enthusiast will soon be using daily.
-
+FoxGirl aims to be a leader in providing unique utility and features to the entire crypto space.
+A platform for innovative products, a massive NFT marketplace, amazing games, comics, token listings,
+verified token developers, utility bots, and so much more!
+                                                                                                         
 */
 
-pragma solidity ^0.8.7;
-
+pragma solidity 0.8.10;
 
 interface IERC20 {
     
@@ -74,7 +80,6 @@ library SafeMath {
     }
     
 }
-
 
 
 abstract contract Context {
@@ -159,41 +164,7 @@ library Address {
     }
 }
 
-abstract contract Ownable is Context {
-    address private _owner;
 
-
-    // Set original owner
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-    constructor () {
-        _owner = 0x072802C98B55F6f5013Df19B5128B52EBD9D7D86;
-        emit OwnershipTransferred(address(0), _owner);
-    }
-
-    // Return current owner
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    // Restrict function to contract owner only 
-    modifier onlyOwner() {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-        _;
-    }
-
-    // Renounce ownership of the contract 
-    function renounceOwnership() public virtual onlyOwner {
-        emit OwnershipTransferred(_owner, address(0));
-        _owner = address(0);
-    }
-
-    // Transfer the contract to to a new owner
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        emit OwnershipTransferred(_owner, newOwner);
-        _owner = newOwner;
-    }
-}
 
 interface IUniswapV2Factory {
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
@@ -383,94 +354,135 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract foxgirl is Context, IERC20, Ownable { 
+
+contract FoxGirl is Context, IERC20 { 
     using SafeMath for uint256;
     using Address for address;
 
 
-    // Tracking status of wallets
+
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    function renounceOwnership() public virtual onlyOwner {
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
+    }
+
+
+    /*
+
+    Transfer Contract Ownership
+
+    */
+
+
+    event newContractOwner(address indexed previousOwner, address indexed newOwner);
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+
+        // Remove previous owner mappings 
+        _isLimitExempt[owner()] = false;
+        _isExcludedFromFee[owner()] = false;
+        _preLaunchAccess[owner()] = false;
+
+        emit newContractOwner(_owner, newOwner);
+        _owner = newOwner;
+
+        // Add new owner mappings 
+        _isLimitExempt[newOwner] = true;
+        _isExcludedFromFee[newOwner] = true;
+        _preLaunchAccess[newOwner] = true;
+    }
+
+
+
     mapping (address => uint256) private _tOwned;
     mapping (address => mapping (address => uint256)) private _allowances;
     mapping (address => bool) public _isExcludedFromFee; 
+    mapping (address => bool) public _preLaunchAccess;
+    mapping (address => bool) public _isLimitExempt;
 
     // Blacklist: If 'noBlackList' is true wallets on this list can not buy - used for known bots
     mapping (address => bool) public _isBlacklisted;
 
-    // Set contract so that blacklisted wallets cannot buy (default is false)
-    bool public noBlackList;
-   
-    /*
-
-    WALLETS
-
-    */
-
-
-    address payable private Wallet_Dev = payable(0x072802C98B55F6f5013Df19B5128B52EBD9D7D86);
-    address payable private Wallet_Burn = payable(0x000000000000000000000000000000000000dEaD); 
-    address payable private Wallet_zero = payable(0x0000000000000000000000000000000000000000); 
-
+    // Set contract so that blacklisted wallets cannot buy 
+    bool public noBlackList = true;
 
     /*
 
-    TOKEN DETAILS
+    Meet the wallets...
 
-    */
-
-
-    string private _name = "FoxGirl"; 
-    string private _symbol = "FOXGIRL";  
-    uint8 private _decimals = 18;
-    uint256 private _tTotal = 100000000000000 * 10**18;
-    uint256 private _tFeeTotal;
-
-    // Counter for liquify trigger
-    uint8 private txCount = 0;
-    uint8 private swapTrigger = 3; 
-
-    // This is the max fee that the contract will accept, it is hard-coded to protect buyers
-    // This includes the buy AND the sell fee!
-    uint256 private maxPossibleFee = 20; 
-
-
-    // Setting the initial fees
-    uint256 private _TotalFee = 10;
-    uint256 public _buyFee = 10;
-    uint256 public _sellFee = 10;
-
-
-    // 'Previous fees' are used to keep track of fee settings when removing and restoring fees
-    uint256 private _previousTotalFee = _TotalFee; 
-    uint256 private _previousBuyFee = _buyFee; 
-    uint256 private _previousSellFee = _sellFee; 
-
-    /*
-
-    WALLET LIMITS 
+    Wallet_FoxGirl: Team, Marketing & Development
+    Wallet_Tokens:  Team Tokens, Promotions & Giveaways
+    Wallet_LP:      Cake LP Destination Wallet for Auto Liquidity
+    Wallet_Burn:    Tracking Burned Tokens to Reduce Total Supply
     
     */
 
+    address payable public Wallet_FoxGirl = payable(0xec7D683353DAe73FE7ec79f9d71324A35c3286F9); 
+    address payable public Wallet_LP = payable(0x9F9cE3a784D1b327296Cd2A351aB7C6DE5A68bd2);
+    address payable public Wallet_Tokens = payable(0x9F9cE3a784D1b327296Cd2A351aB7C6DE5A68bd2); 
+    address payable public constant Wallet_Burn = payable(0x000000000000000000000000000000000000dEaD); 
+
+
+    uint256 private constant MAX = ~uint256(0);
+    uint8 private constant _decimals = 18;
+    uint256 private _tTotal = 10**14 * 10**_decimals;
+    uint256 private OriginalSupply = _tTotal;
+    string private constant _name = "FoxGirl"; 
+    string private constant _symbol = unicode"FOXGIRL"; 
+
+    // Counter for liquify trigger
+    uint8 private txCount = 0;
+    uint8 private swapTrigger = 10; 
+
+    // Setting the initial fees
+    uint256 public _Tax_On_Buy = 10;
+    uint256 public _Tax_On_Sell = 10;
+
+    // Fee distribution (total must = 100%)
+    uint256 public Percent_FoxGirl = 70;
+    uint256 public Percent_Burn = 0;
+    uint256 public Percent_Token_Wallet = 10;
+    uint256 public Percent_AutoLP = 20; 
+
+    // Max possible fee on buy and sell
+    uint256 public constant _Tax_On_Buy_MAX = 12; 
+    uint256 public constant _Tax_On_Sell_MAX = 15;
+
+    uint256 private swapBlock;
+    bool public TradeOpen;
+
+
+    // Wallet limits 
+    
+
     // Max wallet holding (4% at launch)
-    uint256 public _maxWalletToken = _tTotal.mul(4).div(100);
+    uint256 public _maxWalletToken = _tTotal * 4 / 100;
     uint256 private _previousMaxWalletToken = _maxWalletToken;
 
-
     // Maximum transaction amount (4% at launch)
-    uint256 public _maxTxAmount = _tTotal.mul(4).div(100); 
+    uint256 public _maxTxAmount = _tTotal * 4 / 100; 
     uint256 private _previousMaxTxAmount = _maxTxAmount;
-
-    /* 
-
-    PANCAKESWAP SET UP
-
-    */
+                                     
                                      
     IUniswapV2Router02 public uniswapV2Router;
     address public uniswapV2Pair;
     bool public inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
     
-    event SwapAndLiquifyEnabledUpdated(bool enabled);
+    event SwapAndLiquifyEnabledUpdated(bool true_or_false);
     event SwapAndLiquify(
         uint256 tokensSwapped,
         uint256 ethReceived,
@@ -478,55 +490,63 @@ contract foxgirl is Context, IERC20, Ownable {
         
     );
     
-    // Prevent processing while already processing! 
     modifier lockTheSwap {
         inSwapAndLiquify = true;
         _;
         inSwapAndLiquify = false;
     }
-
-    /*
-
-    DEPLOY TOKENS TO OWNER
-
-    Constructor functions are only called once. This happens during contract deployment.
-    This function deploys the total token supply to the owner wallet and creates the PCS pairing
-
-    */
     
     constructor () {
+
+        _owner = 0xec7D683353DAe73FE7ec79f9d71324A35c3286F9;
+        emit OwnershipTransferred(address(0), _owner);
+
         _tOwned[owner()] = _tTotal;
         
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E); 
-        
-        
-        // Create pair address for PancakeSwap
+        //IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3); // TESTNET BSC        
+
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
         uniswapV2Router = _uniswapV2Router;
+
+    
+        /*
+
+        Set initial wallet mappings
+
+        */
+
+
+        // Wallet that are excluded from holding limits
+        _isLimitExempt[owner()] = true;
+        _isLimitExempt[address(this)] = true;
+        _isLimitExempt[Wallet_FoxGirl] = true; 
+        _isLimitExempt[Wallet_Burn] = true;
+
+
+        // Wallets that are excluded from fees
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
-        _isExcludedFromFee[Wallet_Dev] = true;
-        
+        _isExcludedFromFee[Wallet_FoxGirl] = true; 
+        _isExcludedFromFee[Wallet_Burn] = true;
+
+        // Wallets granted access before trade is oopen
+        _preLaunchAccess[owner()] = true;
+
         emit Transfer(address(0), owner(), _tTotal);
+
     }
 
-
-    /*
-
-    STANDARD ERC20 COMPLIANCE FUNCTIONS
-
-    */
-
-    function name() public view returns (string memory) {
+    function name() public pure returns (string memory) {
         return _name;
     }
 
-    function symbol() public view returns (string memory) {
+    function symbol() public pure returns (string memory) {
         return _symbol;
     }
 
-    function decimals() public view returns (uint8) {
+    function decimals() public pure returns (uint8) {
         return _decimals;
     }
 
@@ -543,8 +563,8 @@ contract foxgirl is Context, IERC20, Ownable {
         return true;
     }
 
-    function allowance(address owner, address spender) public view override returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address theOwner, address theSpender) public view override returns (uint256) {
+        return _allowances[theOwner][theSpender];
     }
 
     function approve(address spender, uint256 amount) public override returns (bool) {
@@ -568,89 +588,21 @@ contract foxgirl is Context, IERC20, Ownable {
         return true;
     }
 
-
-    /*
-
-    END OF STANDARD ERC20 COMPLIANCE FUNCTIONS
-
-    */
-
-
-
-
-    /*
-
-    FEES
-
-    */
-    
-    // Set a wallet address so that it does not have to pay transaction fees
-    function excludeFromFee(address account) public onlyOwner {
-        _isExcludedFromFee[account] = true;
-    }
-    
-    // Set a wallet address so that it has to pay transaction fees
-    function includeInFee(address account) public onlyOwner {
-        _isExcludedFromFee[account] = false;
-    }
-
-
-    /*
-
-    SETTING FEES
-
-    Max total fee is limited to 20% (for buy and sell combined)
-    Launch fees are set to 10% buy 10% sell
-
-    */
     
 
-    function _set_Fees(uint256 Buy_Fee, uint256 Sell_Fee) external onlyOwner() {
+    // Turn fess on/off for a wallet - Default is false (Wallets pay fees!)
+    event wallet_is_excluded_from_fee(address Wallet_Address, bool true_or_false);
+    function excluded_From_Fee(address Wallet_Address, bool true_or_false) public onlyOwner {
+        _isExcludedFromFee[Wallet_Address] = true_or_false;
+        emit wallet_is_excluded_from_fee(Wallet_Address, true_or_false);
 
-        require((Buy_Fee + Sell_Fee) <= maxPossibleFee, "Fee is too high!");
-        _sellFee = Sell_Fee;
-        _buyFee = Buy_Fee;
-
-    }
-
-
-
-    // Update main wallet
-    function Wallet_Update_Dev(address payable wallet) public onlyOwner() {
-        Wallet_Dev = wallet;
-        _isExcludedFromFee[Wallet_Dev] = true;
-    }
-
-
-    /*
-
-    PROCESSING TOKENS - SET UP
-
-    */
-    
-    // Toggle on and off to auto process tokens to BNB wallet 
-    function set_Swap_And_Liquify_Enabled(bool true_or_false) public onlyOwner {
-        swapAndLiquifyEnabled = true_or_false;
-        emit SwapAndLiquifyEnabledUpdated(true_or_false);
-    }
-
-    // This will set the number of transactions required before the 'swapAndLiquify' function triggers
-    function set_Number_Of_Transactions_Before_Liquify_Trigger(uint8 number_of_transactions) public onlyOwner {
-        swapTrigger = number_of_transactions;
     }
     
 
 
-    // This function is required so that the contract can receive BNB from pancakeswap
-    receive() external payable {}
-
-
-
     /*
 
-    BLACKLIST 
-
-    This feature is used to block a person from buying - known bot users are added to this
+    Blacklist - This is used to block a person from buying - known bot users are added to this
     list prior to launch. We also check for people using snipe bots on the contract before we
     add liquidity and block these wallets. We like all of our buys to be natural and fair.
 
@@ -701,17 +653,44 @@ contract foxgirl is Context, IERC20, Ownable {
 
     */
 
-    // Blacklist Switch - Turn on/off blacklisted wallet restrictions 
+
+    //Blacklist Switch - Turn on/off blacklisted wallet restrictions 
+    event blacklisted_wallets_blocked(bool true_or_false);
     function blacklist_Switch(bool true_or_false) public onlyOwner {
         noBlackList = true_or_false;
+        emit blacklisted_wallets_blocked(true_or_false);
     } 
 
-  
+
+
+    /*
+
+    Manually set mappings
+
+    */
+
+
+    // Pre Launch Access - able to buy and sell before the trade is open 
+    event wallet_pre_launch_access(address Wallet_Address, bool true_or_false);
+    function mapping_preLaunchAccess(address Wallet_Address, bool true_or_false) external onlyOwner() {    
+        _preLaunchAccess[Wallet_Address] = true_or_false;
+        emit wallet_pre_launch_access(Wallet_Address, true_or_false);
+    }
+
+    // Add wallet to limit exempt list 
+    event wallet_limit_exempt(address Wallet_Address, bool true_or_false);
+    function mapping_LimitExempt(address Wallet_Address, bool true_or_false) external onlyOwner() {  
+        _isLimitExempt[Wallet_Address] = true_or_false;
+        emit wallet_limit_exempt(Wallet_Address, true_or_false);
+    }
+
+
     /*
     
     When sending tokens to another wallet (not buying or selling) if noFeeToTransfer is true there will be no fee
 
     */
+
 
     bool public noFeeToTransfer = true;
 
@@ -719,69 +698,166 @@ contract foxgirl is Context, IERC20, Ownable {
     // True = there will be no fees when moving tokens around or giving them to friends! (There will only be a fee to buy or sell)
     // False = there will be a fee when buying/selling/tranfering tokens
     // Default is true
+
+    event noFeeOnTransfer(bool true_or_false);
     function set_Transfers_Without_Fees(bool true_or_false) external onlyOwner {
         noFeeToTransfer = true_or_false;
+        emit noFeeOnTransfer(true_or_false);
     }
+
+    
+    // isPair - Add to pair (set to true) OR Remove from pair (set to false)
+
+    mapping (address => bool) public _isPair;
 
     /*
 
-    WALLET LIMITS
+    Setting as a pair indicates that it is an address used by an exchange to buy or sell tokens. 
+    This setting is used so that we can have no-fee transfers between wallets but new
+    pairings will take a fee on buys and sell
 
-    Wallets are limited in two ways. The amount of tokens that can be purchased in one transaction
-    and the total amount of tokens a wallet can buy. Limiting a wallet prevents one wallet from holding too
-    many tokens, which can scare away potential buyers that worry that a whale might dump!
+    */
+ 
+    event wallet_set_as_pair(address Wallet_Address, bool true_or_false);
+    function set_as_Pair(address Wallet_Address, bool true_or_false) external onlyOwner {
+        _isPair[Wallet_Address] = true_or_false;
+        emit wallet_set_as_pair(Wallet_Address, true_or_false);
+    }
 
-    IMPORTANT
 
-    Solidity can not process decimals, so to increase flexibility, we multiple everything by 100.
-    When entering the percent, you need to shift your decimal two steps to the right.
 
-    eg: For 4% enter 400, for 1% enter 100, for 0.25% enter 25, for 0.2% enter 20 etc!
+    /*
+
+    FEES  
 
     */
 
-    // Set the Max transaction amount (percent of total supply)
-    function set_Max_Transaction_Percent(uint256 maxTxPercent_x100) external onlyOwner() {
-        _maxTxAmount = _tTotal*maxTxPercent_x100/10000;
-    }    
-    
-    // Set the maximum wallet holding (percent of total supply)
-     function set_Max_Wallet_Percent(uint256 maxWallPercent_x100) external onlyOwner() {
-        _maxWalletToken = _tTotal*maxWallPercent_x100/10000;
-    }
+    event setting_fees(uint256 Tax_On_Buy, uint256 Tax_On_Sell);
+    function _set_Fees(uint256 Tax_On_Buy, uint256 Tax_On_Sell) external onlyOwner() {
 
+  
+        require(Tax_On_Buy <= _Tax_On_Buy_MAX, "Buy fee too high!");
+        require(Tax_On_Sell <= _Tax_On_Sell_MAX, "Sell fee too high!");
 
-
-    // Remove all fees
-    function removeAllFee() private {
-        if(_TotalFee == 0 && _buyFee == 0 && _sellFee == 0) return;
-
-
-        _previousBuyFee = _buyFee; 
-        _previousSellFee = _sellFee; 
-        _previousTotalFee = _TotalFee;
-        _buyFee = 0;
-        _sellFee = 0;
-        _TotalFee = 0;
-
-    }
-    
-    // Restore all fees
-    function restoreAllFee() private {
-    
-    _TotalFee = _previousTotalFee;
-    _buyFee = _previousBuyFee; 
-    _sellFee = _previousSellFee; 
+        _Tax_On_Buy = Tax_On_Buy;
+        _Tax_On_Sell = Tax_On_Sell;
+        emit setting_fees(Tax_On_Buy, Tax_On_Sell);
 
     }
 
 
-    // Approve a wallet to sell tokens
-    function _approve(address owner, address spender, uint256 amount) private {
+    function _set_Fee_Distribution_Percent__Total_100(uint256 FoxGirl_Wallet, uint256 Auto_Liquidity, uint256 Token_Wallet, uint256 Auto_Burn) external onlyOwner() {
 
-        require(owner != address(0) && spender != address(0), "ERR: zero address");
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        require((FoxGirl_Wallet + Auto_Liquidity + Token_Wallet + Auto_Burn) == 100, "Must add up to 100!");
+   
+        Percent_FoxGirl = FoxGirl_Wallet;
+        Percent_Burn = Auto_Burn;
+        Percent_Token_Wallet = Token_Wallet;
+        Percent_AutoLP = Auto_Liquidity; 
+        
+    }
+
+
+    /*
+
+    Updating Wallets
+
+    */
+
+
+    //Update the FoxGirl wallet
+    event updatedFoxGirlWallet(address indexed oldWallet, address indexed newWallet);
+    function Wallet_Update_FoxGirl(address payable wallet) external onlyOwner() {
+        // Can't be zero address
+        require(wallet != address(0), "new wallet is the zero address");
+        emit updatedFoxGirlWallet(Wallet_FoxGirl,wallet);
+
+        // Update mapping on old wallet
+        _isExcludedFromFee[Wallet_FoxGirl] = false; 
+
+        Wallet_FoxGirl = wallet;
+        // Update mapping on new wallet
+        _isExcludedFromFee[Wallet_FoxGirl] = true;
+    }
+
+    //Update the Token wallet 
+    event updatedTokenWallet(address indexed oldWallet, address indexed newWallet);
+    function Wallet_Update_Tokens(address payable wallet) external onlyOwner() {
+        // Can't be zero address
+        require(wallet != address(0), "new wallet is the zero address");      
+        emit updatedTokenWallet(Wallet_Tokens,wallet);
+        Wallet_Tokens = wallet;
+
+    }
+   
+    
+    /*
+
+    SwapAndLiquify Switches
+
+    */
+    
+    // Toggle on and off to activate auto liquidity and the promo wallet 
+    function set_Swap_And_Liquify_Enabled(bool true_or_false) public onlyOwner {
+        swapAndLiquifyEnabled = true_or_false;
+        emit SwapAndLiquifyEnabledUpdated(true_or_false);
+    }
+
+    // This will set the number of transactions required before the 'swapAndLiquify' function triggers
+    event TokenTriggerNumberUpdate(uint8 number_of_transactions);
+    function set_Number_Of_Transactions_Before_Liquify_Trigger(uint8 number_of_transactions) public onlyOwner {
+        swapTrigger = number_of_transactions;
+        emit TokenTriggerNumberUpdate(number_of_transactions);
+
+    }
+    
+
+
+    // This function is required so that the contract can receive BNB from pancakeswap
+    receive() external payable {}
+
+
+    /*
+
+    Wallet Limits
+
+    */
+
+    // Set the Max transaction (as percent of original supply) - Must be whole number, can not enter decimals
+    event set_Max_Trans_Percent(uint256  max_Transaction_Percent);
+    function set_Max_Transaction_Percent(uint256 max_Transaction_Percent) external onlyOwner() {
+
+        _maxTxAmount = OriginalSupply * max_Transaction_Percent / 100;
+        emit set_Max_Trans_Percent(_maxTxAmount);
+    }
+
+    
+    // Set the maximum permitted wallet holding (as percent of original supply)
+    event set_Max_Hold_Percent(uint256  max_Wallet_Holding_Percent);
+    function set_Max_Wallet_Holding_Percent(uint256 max_Wallet_Holding_Percent) external onlyOwner() {
+
+        _maxWalletToken = OriginalSupply * max_Wallet_Holding_Percent / 100;
+        emit set_Max_Hold_Percent(_maxWalletToken);
+    }
+
+
+    // Open Trade - ONE WAY SWITCH! 
+    function openTrade() external onlyOwner() {
+        TradeOpen = true;
+    }
+
+
+    function _getCurrentSupply() private view returns(uint256) {
+        return (_tTotal);
+    }
+
+
+
+    function _approve(address theOwner, address theSpender, uint256 amount) private {
+
+        require(theOwner != address(0) && theSpender != address(0), "ERR: zero address");
+        _allowances[theOwner][theSpender] = amount;
+        emit Approval(theOwner, theSpender, amount);
 
     }
 
@@ -790,7 +866,24 @@ contract foxgirl is Context, IERC20, Ownable {
         address to,
         uint256 amount
     ) private {
+
+
+
+        if (!TradeOpen){
+        require(_preLaunchAccess[from] || _preLaunchAccess[to], "Trade is not open yet, please come back later");
+        }
+
+
+        /*
+
+        BLACKLIST RESTRICTIONS
+
+        */
         
+        if (noBlackList){
+        require(!_isBlacklisted[from] && !_isBlacklisted[to], "This address is blacklisted. Transaction reverted.");
+        }
+
 
         /*
 
@@ -800,11 +893,7 @@ contract foxgirl is Context, IERC20, Ownable {
         
 
         // Limit wallet total
-        if (to != owner() &&
-            to != Wallet_Dev &&
-            to != address(this) &&
-            to != uniswapV2Pair &&
-            to != Wallet_Burn &&
+        if (!_isLimitExempt[to] &&
             from != owner()){
             uint256 heldTokens = balanceOf(to);
             require((heldTokens + amount) <= _maxWalletToken,"You are trying to buy too many tokens. You have reached the limit for one wallet.");}
@@ -815,106 +904,143 @@ contract foxgirl is Context, IERC20, Ownable {
             require(amount <= _maxTxAmount, "You are trying to buy more than the max transaction limit.");
 
 
-
-        /*
-
-        BLACKLIST RESTRICTIONS
-
-        */
-        
-        if (noBlackList){
-        require(!_isBlacklisted[from] && !_isBlacklisted[to], "This address is blacklisted. Transaction reverted.");}
-
-
         require(from != address(0) && to != address(0), "ERR: Using 0 address!");
         require(amount > 0, "Token value must be higher than zero.");
 
 
-        /*
-
-        PROCESSING
-
-        */
-
-
         // SwapAndLiquify is triggered after every X transactions - this number can be adjusted using swapTrigger
+        
 
         if(
             txCount >= swapTrigger && 
             !inSwapAndLiquify &&
-            from != uniswapV2Pair &&
-            swapAndLiquifyEnabled 
+            !_isPair[from] &&
+            swapAndLiquifyEnabled &&
+            block.number > swapBlock
             )
         {  
             
-            txCount = 0;
+            
             uint256 contractTokenBalance = balanceOf(address(this));
             if(contractTokenBalance > _maxTxAmount) {contractTokenBalance = _maxTxAmount;}
-            if(contractTokenBalance > 0){
+            txCount = 0;
             swapAndLiquify(contractTokenBalance);
+            swapBlock = block.number;
         }
-        }
-
-
-        /*
-
-        REMOVE FEES IF REQUIRED
-
-        Fee removed if the to or from address is excluded from fee.
-        Fee removed if the transfer is NOT a buy or sell.
-        Change fee amount for buy or sell.
-
-        */
-
         
+
+        // Do we need to charge a fee?
         bool takeFee = true;
-         
-        if(_isExcludedFromFee[from] || _isExcludedFromFee[to] || (noFeeToTransfer && from != uniswapV2Pair && to != uniswapV2Pair)){
+        bool isBuy;
+        if(_isExcludedFromFee[from] || _isExcludedFromFee[to] || (noFeeToTransfer && !_isPair[to] && !_isPair[from])){
             takeFee = false;
-        } else if (from == uniswapV2Pair){_TotalFee = _buyFee;} else if (to == uniswapV2Pair){_TotalFee = _sellFee;}
-        
-        _tokenTransfer(from,to,amount,takeFee);
+        } else {
+         
+            // Buy or Sell Tax
+            if(_isPair[from]){
+                isBuy = true;
+            }
+
+            txCount++;
+
+        }
+
+        _tokenTransfer(from, to, amount, takeFee, isBuy);
+
     }
-
-
-
-    /*
-
-    PROCESSING FEES
-
-    Fees are added to the contract as tokens, these functions exchange the tokens for BNB and send to the wallet.
-    One wallet is used for ALL fees. This includes liquidity, marketing, development costs etc.
-
-    */
-
-
-    // Send BNB to external wallet
+    
     function sendToWallet(address payable wallet, uint256 amount) private {
             wallet.transfer(amount);
+
         }
 
 
-    // Processing tokens from contract
     function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
+
+
+        // Distribute the accumuated fees based on the fee allocation percents
+
+        // Process 'Token Fees' First
+
+        if (Percent_Token_Wallet != 0){
+
+            // Send Tokens to the token wallet - used for team tokens and giveaway promotions
+            uint256 tokens_to_Wallet = contractTokenBalance * Percent_Token_Wallet / 100;
+            _tOwned[Wallet_Tokens] = _tOwned[Wallet_Tokens] + tokens_to_Wallet; 
+            _tOwned[address(this)] = _tOwned[address(this)] - tokens_to_Wallet;   
         
-        swapTokensForBNB(contractTokenBalance);
-        uint256 contractBNB = address(this).balance;
-        sendToWallet(Wallet_Dev,contractBNB);
+        }
+
+
+        if (Percent_Burn != 0){
+
+            // Send Tokens to the Burn Wallet 
+            uint256 tokens_to_Burn = contractTokenBalance * Percent_Burn / 100;
+            _tTotal = _tTotal - tokens_to_Burn;
+            _tOwned[Wallet_Burn] = _tOwned[Wallet_Burn] + tokens_to_Burn;
+            _tOwned[address(this)] = _tOwned[address(this)] - tokens_to_Burn;   
+       
+        }
+
+
+        // Process 'BNB Fees' Second
+
+
+        if (Percent_AutoLP != 0 && Percent_FoxGirl != 0){
+
+            // Calculate how many tokens need to be swapped for BNB (FoxGirl BNB and 1/2 Auto Liquidity)
+
+            uint256 tokens_to_M = contractTokenBalance * Percent_FoxGirl / 100;
+            uint256 tokens_to_LP_Half = contractTokenBalance * Percent_AutoLP / 200;
+
+            uint256 balanceBeforeSwap = address(this).balance;
+            swapTokensForBNB(tokens_to_LP_Half + tokens_to_M);
+            uint256 BNB_Total = address(this).balance - balanceBeforeSwap;
+
+
+            // Split the total BNB with the correct ratio and create liquidity
+            uint256 split_M = Percent_FoxGirl * 100 / (Percent_AutoLP + Percent_FoxGirl);
+            uint256 BNB_M = BNB_Total * split_M / 100;
+
+            addLiquidity(tokens_to_LP_Half, (BNB_Total - BNB_M));
+            emit SwapAndLiquify(tokens_to_LP_Half, (BNB_Total-BNB_M), tokens_to_LP_Half);
+
+            // Send BNB to FoxGirl wallet - Check again incase some is added during calculations
+            BNB_Total = address(this).balance;
+            sendToWallet(Wallet_FoxGirl, BNB_Total);
+
+          
+
+        } else if (Percent_AutoLP == 0 && Percent_FoxGirl != 0){
+
+            // Swap tokens for BNB and send to FoxGirl Wallet if Auto LP is 0
+
+            uint256 tokens_to_M = contractTokenBalance * Percent_FoxGirl / 100;
+            swapTokensForBNB(tokens_to_M);
+            uint256 BNB_M = address(this).balance;
+            sendToWallet(Wallet_FoxGirl, BNB_M);
+
+          
+
+
+        } else if (Percent_AutoLP != 0 && Percent_FoxGirl == 0){
+
+            // Create the Auto LP if FoxGirl is 0
+            uint256 tokens_to_LP = contractTokenBalance * Percent_AutoLP / 100;
+            uint256 half_LP = tokens_to_LP / 2;
+            uint256 balanceBeforeSwap = address(this).balance;
+            swapTokensForBNB(half_LP);
+            uint256 BNB_LP = address(this).balance - balanceBeforeSwap;
+            addLiquidity(half_LP, BNB_LP);
+            emit SwapAndLiquify(half_LP, BNB_LP, half_LP);
+
+
+        }
+
     }
 
 
-    // Manual Token Process Trigger - Enter the percent of the tokens that you'd like to send to process
-    function process_Tokens_Now (uint256 percent_Of_Tokens_To_Process) public onlyOwner {
-        // Do not trigger if already in swap
-        require(!inSwapAndLiquify, "Currently processing, try later."); 
-        if (percent_Of_Tokens_To_Process > 100){percent_Of_Tokens_To_Process == 100;}
-        uint256 tokensOnContract = balanceOf(address(this));
-        uint256 sendTokens = tokensOnContract*percent_Of_Tokens_To_Process/100;
-        swapAndLiquify(sendTokens);
-    }
-
-
-    // Swapping tokens for BNB using PancakeSwap 
+    // Swap tokens for BNB
     function swapTokensForBNB(uint256 tokenAmount) private {
 
         address[] memory path = new address[](2);
@@ -930,20 +1056,45 @@ contract foxgirl is Context, IERC20, Ownable {
         );
     }
 
+
+
+    /*
+
+    Creating Auto Liquidity
+
+    */
+
+    function addLiquidity(uint256 tokenAmount, uint256 BNBAmount) private {
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+        uniswapV2Router.addLiquidityETH{value: BNBAmount}(
+            address(this),
+            tokenAmount,
+            0, 
+            0,
+            Wallet_LP, 
+            block.timestamp
+        );
+    } 
+
+
+
     /*
 
     PURGE RANDOM TOKENS - Add the random token address and a wallet to send them to
 
     */
 
-    // Remove random tokens from the contract and send to a wallet
-    function remove_Random_Tokens(address random_Token_Address, address send_to_wallet, uint256 number_of_tokens) public onlyOwner returns(bool _sent){
-        require(random_Token_Address != address(this), "Can not remove native token");
-        uint256 randomBalance = IERC20(random_Token_Address).balanceOf(address(this));
-        if (number_of_tokens > randomBalance){number_of_tokens = randomBalance;}
-        _sent = IERC20(random_Token_Address).transfer(send_to_wallet, number_of_tokens);
-    }
 
+    // Remove random tokens from the contract and send to a wallet
+
+    function remove_Random_Tokens(address random_Token_Address, address send_to_wallet, uint256 percent_of_Tokens) public onlyOwner returns(bool _sent){
+        require(random_Token_Address != address(this), "Can not remove native token");
+        uint256 totalRandom = IERC20(random_Token_Address).balanceOf(address(this));
+        uint256 removeRandom = totalRandom*percent_of_Tokens/100;
+        _sent = IERC20(random_Token_Address).transfer(send_to_wallet, removeRandom);
+
+    }
 
     /*
     
@@ -957,66 +1108,106 @@ contract foxgirl is Context, IERC20, Ownable {
         IUniswapV2Router02 _newPCSRouter = IUniswapV2Router02(newRouter);
         uniswapV2Pair = IUniswapV2Factory(_newPCSRouter.factory()).createPair(address(this), _newPCSRouter.WETH());
         uniswapV2Router = _newPCSRouter;
+        _isPair[uniswapV2Pair] = true;
+
     }
    
     // Set new router
     function set_New_Router_Address(address newRouter) public onlyOwner() {
+
         IUniswapV2Router02 _newPCSRouter = IUniswapV2Router02(newRouter);
         uniswapV2Router = _newPCSRouter;
+
     }
     
     // Set new address - This will be the 'Cake LP' address for the token pairing
+
     function set_New_Pair_Address(address newPair) public onlyOwner() {
+
         uniswapV2Pair = newPair;
+        _isPair[uniswapV2Pair] = true;
+
+    }
+   
+
+    // Manual 'swapAndLiquify' Trigger (Enter the percent of the tokens that you'd like to send to swap and liquify)
+    function process_SwapAndLiquify_Now (uint256 percent_Of_Tokens_To_Liquify) public onlyOwner {
+        // Do not trigger if already in swap
+        require(!inSwapAndLiquify, "Currently processing liquidity, try later."); 
+        if (percent_Of_Tokens_To_Liquify > 100){percent_Of_Tokens_To_Liquify == 100;}
+        uint256 tokensOnContract = balanceOf(address(this));
+        uint256 sendTokens = tokensOnContract*percent_Of_Tokens_To_Liquify/100;
+        swapAndLiquify(sendTokens);
+
     }
 
-    /*
 
-    TOKEN TRANSFERS
-
-    */
-
-    // Check if token transfer needs to process fees
-    function _tokenTransfer(address sender, address recipient, uint256 amount,bool takeFee) private {
+    function _tokenTransfer(address sender, address recipient, uint256 tAmount, bool takeFee, bool isBuy) private {
         
         
         if(!takeFee){
-            removeAllFee();
+
+            // No Fee - Just hand over the tokens! 
+            _tOwned[sender] = _tOwned[sender]-tAmount;
+            _tOwned[recipient] = _tOwned[recipient]+tAmount;
+            emit Transfer(sender, recipient, tAmount);
+
+            if(recipient == Wallet_Burn)
+            _tTotal = _tTotal-tAmount;
+
+            } else if (isBuy){
+
+            // Transaction is Buy 
+            uint256 buyFEE = tAmount*_Tax_On_Buy/100;
+            uint256 tTransferAmount = tAmount-buyFEE;
+
+            _tOwned[sender] = _tOwned[sender]-tAmount;
+            _tOwned[recipient] = _tOwned[recipient]+tTransferAmount;
+            _tOwned[address(this)] = _tOwned[address(this)]+buyFEE;   
+            emit Transfer(sender, recipient, tTransferAmount);
+
+            if(recipient == Wallet_Burn)
+            _tTotal = _tTotal-tTransferAmount;
+            
             } else {
-                txCount++;
+
+            // Transaction is Sell
+            uint256 sellFEE = tAmount*_Tax_On_Sell/100;
+            uint256 tTransferAmount = tAmount-sellFEE;
+
+            _tOwned[sender] = _tOwned[sender]-tAmount;
+            _tOwned[recipient] = _tOwned[recipient]+tTransferAmount;
+            _tOwned[address(this)] = _tOwned[address(this)]+sellFEE;   
+            emit Transfer(sender, recipient, tTransferAmount);
+
+            if(recipient == Wallet_Burn)
+            _tTotal = _tTotal-tTransferAmount;
+
+
             }
-            _transferTokens(sender, recipient, amount);
-        
-        if(!takeFee)
-            restoreAllFee();
+
     }
 
-    // Redistributing tokens and adding the fee to the contract address
-    function _transferTokens(address sender, address recipient, uint256 tAmount) private {
-        (uint256 tTransferAmount, uint256 tDev) = _getValues(tAmount);
-        _tOwned[sender] = _tOwned[sender].sub(tAmount);
-        _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
-        _tOwned[address(this)] = _tOwned[address(this)].add(tDev);   
-        emit Transfer(sender, recipient, tTransferAmount);
+    // Transfer Tokens Via Airdrop
+    function _TransferTokens_AirDrop(address[] calldata Wallets, uint256[] calldata Tokens)  external onlyOwner(){
+
+        require(Wallets.length <= 500, "Limit sending to 500 to reduce errors"); 
+        require(Wallets.length == Tokens.length, "Token and Wallet count missmatch!");
+
+        uint256 checkQuantity;
+
+        for(uint i=0; i < Wallets.length; i++){
+        checkQuantity = checkQuantity + Tokens[i];
+        }
+
+        require(balanceOf(msg.sender) >= checkQuantity, "You do not have enough tokens!");
+
+        for (uint i=0; i < Wallets.length; i++) {
+            transfer(Wallets[i], Tokens[i]*10**_decimals);
+        }
     }
-
-
-    // Calculating the fee in tokens
-    function _getValues(uint256 tAmount) private view returns (uint256, uint256) {
-        uint256 tDev = tAmount*_TotalFee/100;
-        uint256 tTransferAmount = tAmount.sub(tDev);
-        return (tTransferAmount, tDev);
-    }
-
-
-
-    
-
 
 }
 
 
-
-
-
-// Contract by GEN - https://gentokens.com/
+// Contract created for https://Foxgirl.com by https://gentokens.com/
